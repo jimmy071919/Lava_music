@@ -2,6 +2,7 @@ FROM eclipse-temurin:17-jre-jammy
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
@@ -14,6 +15,7 @@ RUN apt-get update && \
     git \
     curl \
     tini \
+    procps \
     && rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/bin/python3 /usr/bin/python
 
@@ -25,7 +27,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 RUN useradd -m -u 1000 appuser
 
 # Create necessary directories
-RUN mkdir -p /app/configs /app/lava /app/locale && \
+RUN mkdir -p /app/configs /app/lava /app/locale /app/logs && \
     chown -R appuser:appuser /app
 
 # Copy application files
@@ -104,28 +106,82 @@ lavalink:\n\
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
+\n\
+# Function to check if a process is running\n\
+is_process_running() {\n\
+    local pid=$1\n\
+    if ps -p $pid > /dev/null; then\n\
+        return 0\n\
+    else\n\
+        return 1\n\
+    fi\n\
+}\n\
+\n\
+# Function to cleanup processes\n\
+cleanup() {\n\
+    echo "Cleaning up..."\n\
+    if [ ! -z "$LAVALINK_PID" ]; then\n\
+        kill $LAVALINK_PID 2>/dev/null\n\
+    fi\n\
+    if [ ! -z "$TAIL_PID" ]; then\n\
+        kill $TAIL_PID 2>/dev/null\n\
+    fi\n\
+    exit 0\n\
+}\n\
+\n\
+# Set up trap for cleanup\n\
+trap cleanup SIGTERM SIGINT\n\
+\n\
 echo "Starting Lavalink..."\n\
-java -jar Lavalink.jar > lavalink.log 2>&1 &\n\
+mkdir -p /app/logs\n\
+java -jar Lavalink.jar > /app/logs/lavalink.log 2>&1 &\n\
 LAVALINK_PID=$!\n\
 \n\
-echo "Waiting for Lavalink to start..."\n\
-tail -f lavalink.log & \n\
+echo "Waiting for Lavalink to start (PID: $LAVALINK_PID)..."\n\
+tail -f /app/logs/lavalink.log & \n\
 TAIL_PID=$!\n\
 \n\
-while ! grep -q "Lavalink is ready to accept connections." lavalink.log; do\n\
-    if ! ps -p $LAVALINK_PID > /dev/null; then\n\
+# Wait for Lavalink to be ready\n\
+COUNTER=0\n\
+while ! grep -q "Lavalink is ready to accept connections." /app/logs/lavalink.log 2>/dev/null; do\n\
+    if ! is_process_running $LAVALINK_PID; then\n\
         echo "Lavalink failed to start. Log output:"\n\
-        cat lavalink.log\n\
+        cat /app/logs/lavalink.log\n\
+        cleanup\n\
         exit 1\n\
     fi\n\
     sleep 1\n\
+    COUNTER=$((COUNTER + 1))\n\
+    if [ $COUNTER -ge 60 ]; then\n\
+        echo "Timeout waiting for Lavalink to start. Log output:"\n\
+        cat /app/logs/lavalink.log\n\
+        cleanup\n\
+        exit 1\n\
+    fi\n\
+    echo "Waiting... ($COUNTER/60)"\n\
 done\n\
 \n\
 kill $TAIL_PID\n\
 echo "Lavalink is ready!"\n\
 \n\
 echo "Starting Discord bot..."\n\
-exec python3 main.py\n\
+python3 main.py &\n\
+BOT_PID=$!\n\
+\n\
+# Monitor both processes\n\
+while true; do\n\
+    if ! is_process_running $LAVALINK_PID; then\n\
+        echo "Lavalink process died!"\n\
+        cleanup\n\
+        exit 1\n\
+    fi\n\
+    if ! is_process_running $BOT_PID; then\n\
+        echo "Discord bot process died!"\n\
+        cleanup\n\
+        exit 1\n\
+    fi\n\
+    sleep 5\n\
+done\n\
 ' > /app/start.sh && \
     chmod +x /app/start.sh
 
