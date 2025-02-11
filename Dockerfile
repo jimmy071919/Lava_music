@@ -1,29 +1,30 @@
-FROM python:3.13.1-alpine as builder
+FROM python:3.11-slim-bullseye as builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN apk update && apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     git \
     curl \
-    xz \
     gcc \
     g++ \
-    zlib-dev \
+    libjpeg-dev \
+    zlib1g-dev \
     libffi-dev \
-    build-base \
-    cmake \
-    jpeg-dev
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN python -m pip install -r requirements.txt --prefix=/install
 
-FROM openjdk:17-slim as runtime
+FROM python:3.11-slim-bullseye as runtime
 
-# Install Python
-RUN apt-get update && apt-get install -y python3 python3-pip
+# Install OpenJDK-17
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jre-headless \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001
 RUN adduser \
