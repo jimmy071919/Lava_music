@@ -13,7 +13,7 @@ RUN apt-get update && \
     python3-dev \
     git \
     curl \
-    netcat \
+    supervisor \
     && rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/bin/python3 /usr/bin/python
 
@@ -25,7 +25,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 RUN useradd -m -u 1000 appuser
 
 # Create necessary directories
-RUN mkdir -p /app/configs /app/lava /app/locale && \
+RUN mkdir -p /app/configs /app/lava /app/locale /app/logs && \
     chown -R appuser:appuser /app
 
 # Copy application files
@@ -80,7 +80,7 @@ RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lava
 # Create Lavalink config
 RUN echo 'server:\n\
   port: 2333\n\
-  address: 127.0.0.1\n\
+  address: 0.0.0.0\n\
 authorization:\n\
   password: "youshallnotpass"\n\
 lavalink:\n\
@@ -102,39 +102,33 @@ lavalink:\n\
 ' > /app/configs/application.yml && \
     chown appuser:appuser /app/configs/application.yml
 
-USER appuser
+# Create supervisor configuration
+RUN echo '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\
+logfile=/app/logs/supervisord.log\n\
+\n\
+[program:lavalink]\n\
+command=java -jar /app/Lavalink.jar\n\
+directory=/app\n\
+user=appuser\n\
+autostart=true\n\
+autorestart=true\n\
+startsecs=5\n\
+stdout_logfile=/app/logs/lavalink.log\n\
+stderr_logfile=/app/logs/lavalink.err\n\
+\n\
+[program:discord_bot]\n\
+command=python3 /app/main.py\n\
+directory=/app\n\
+user=appuser\n\
+autostart=true\n\
+autorestart=true\n\
+startsecs=5\n\
+stdout_logfile=/app/logs/discord_bot.log\n\
+stderr_logfile=/app/logs/discord_bot.err\n\
+depends_on=lavalink\n\
+' > /etc/supervisor/conf.d/supervisord.conf
 
-# Create startup script
-RUN echo '#!/bin/bash\n\
-echo "Starting Lavalink server..."\n\
-java -jar Lavalink.jar > lavalink.log 2>&1 &\n\
-LAVALINK_PID=$!\n\
-\n\
-echo "Waiting for Lavalink to start..."\n\
-for i in {1..30}; do\n\
-    if nc -z 127.0.0.1 2333; then\n\
-        echo "Lavalink is ready!"\n\
-        break\n\
-    fi\n\
-    if ! ps -p $LAVALINK_PID > /dev/null; then\n\
-        echo "Lavalink failed to start. Check lavalink.log for details:"\n\
-        cat lavalink.log\n\
-        exit 1\n\
-    fi\n\
-    echo "Waiting... ($i/30)"\n\
-    sleep 1\n\
-done\n\
-\n\
-if ! nc -z 127.0.0.1 2333; then\n\
-    echo "Lavalink failed to start within 30 seconds. Check lavalink.log for details:"\n\
-    cat lavalink.log\n\
-    exit 1\n\
-fi\n\
-\n\
-echo "Starting Discord bot..."\n\
-exec python3 main.py\n\
-' > /app/start.sh && \
-    chmod +x /app/start.sh
-
-# Start both Lavalink and the bot
-CMD ["/app/start.sh"]
+USER root
+CMD ["/usr/bin/supervisord"]
