@@ -47,7 +47,11 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
             "port": 8080,\
             "password": "youshallnotpass",\
             "name": "local",\
-            "region": "us"\
+            "region": "us",\
+            "resume_key": "default-node",\
+            "resume_timeout": 60,\
+            "ssl": false,\
+            "search_only": false\
         }\
     ]\
 }' > /app/configs/lavalink.json && \
@@ -137,6 +141,9 @@ cleanup() {\n\
     if [ ! -z "$BOT_PID" ]; then\n\
         kill $BOT_PID 2>/dev/null\n\
     fi\n\
+    if [ ! -z "$BOT_LOG_PID" ]; then\n\
+        kill $BOT_LOG_PID 2>/dev/null\n\
+    fi\n\
     exit 0\n\
 }\n\
 \n\
@@ -187,14 +194,19 @@ fi\n\
 \n\
 # Check Lavalink process status\n\
 echo "Lavalink process info:"\n\
-ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,vsz,rss,stat,start,time,command\n\
+ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,stat,start,time\n\
 \n\
 # Wait a bit for Lavalink to fully initialize\n\
 sleep 5\n\
 \n\
 echo "Starting Discord bot..."\n\
-python3 -u main.py > /app/logs/bot.log 2>&1 &\n\
+# Start bot with output to both console and file\n\
+python3 -u main.py 2>&1 | tee /app/logs/bot.log & \n\
 BOT_PID=$!\n\
+\n\
+# Start background tail of bot log\n\
+tail -f /app/logs/bot.log & \n\
+BOT_LOG_PID=$!\n\
 \n\
 # Monitor both processes\n\
 while true; do\n\
@@ -204,13 +216,18 @@ while true; do\n\
         cleanup\n\
         exit 1\n\
     fi\n\
-    if ! is_process_running $BOT_PID; then\n\
+    if ! ps -p $BOT_PID > /dev/null; then\n\
         echo "Discord bot process died! Log tail:"\n\
         tail -n 50 /app/logs/bot.log\n\
         cleanup\n\
         exit 1\n\
     fi\n\
     sleep 5\n\
+    echo "Status check - $(date)"\n\
+    echo "Lavalink status:"\n\
+    ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,stat,start,time\n\
+    echo "Bot status:"\n\
+    ps -p $BOT_PID -o pid,ppid,user,%cpu,%mem,stat,start,time\n\
 done\n\
 ' > /app/start.sh && \
     chmod +x /app/start.sh
