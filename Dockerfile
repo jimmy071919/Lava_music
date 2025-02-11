@@ -18,7 +18,7 @@ RUN apk update && apk add --no-cache \
     jpeg-dev
 
 COPY requirements.txt .
-RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=cache:pip,target=/root/.cache/pip \
     python -m pip install -r requirements.txt --prefix=/install
 
 FROM python:3.13.1-alpine as runtime
