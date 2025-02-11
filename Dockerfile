@@ -36,7 +36,31 @@ COPY --chown=appuser:appuser locale/ /app/locale/
 # Create config files
 RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' > /app/configs/activity.json && \
     echo '{"server": {"address": "0.0.0.0", "port": 2333}, "lavalink": {"server": {"password": "youshallnotpass"}}}' > /app/configs/lavalink.json && \
-    chown appuser:appuser /app/configs/activity.json /app/configs/lavalink.json
+    echo '{\
+    "empty": "",\
+    "progress": {\
+        "start_point": "",\
+        "start_fill": "",\
+        "mid_point": "",\
+        "end_fill": "",\
+        "end_point": "",\
+        "end": ""\
+    },\
+    "control": {\
+        "rewind": "",\
+        "forward": "",\
+        "pause": "",\
+        "resume": "",\
+        "stop": "",\
+        "previous": "",\
+        "next": "",\
+        "shuffle": "",\
+        "repeat": "",\
+        "autoplay": "",\
+        "lyrics": ""\
+    }\
+}' > /app/configs/icons.json && \
+    chown appuser:appuser /app/configs/activity.json /app/configs/lavalink.json /app/configs/icons.json
 
 # Download Lavalink
 RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar && \
