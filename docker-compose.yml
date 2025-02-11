@@ -1,27 +1,30 @@
 version: "3"
 
 services:
-  lava:
-    image: ghcr.io/nat1anwastaken/lava:latest
-    build: .
-    restart: always
-    env_file:
-      - stack.env
-    volumes:
-      - "./configs:/app/configs"
-    depends_on:
-      - lavalink
+  lavalink:
+    build:
+      context: .
+      target: lavalink
     networks:
       - lava
-
-  lavalink:
-    image: fredboat/lavalink:latest
-    volumes:
-      - "./configs/application.yml:/opt/Lavalink/application.yml"
-      - "./plugins/:/opt/Lavalink/plugins/"
     hostname: lavalink
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2333/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  discord_bot:
+    build:
+      context: .
+    env_file:
+      - stack.env
+    depends_on:
+      lavalink:
+        condition: service_healthy
     networks:
       - lava
 
 networks:
   lava:
+    driver: bridge
