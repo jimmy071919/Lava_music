@@ -38,7 +38,7 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
     echo '{\
     "nodes": [\
         {\
-            "host": "localhost",\
+            "host": "127.0.0.1",\
             "port": 2333,\
             "password": "youshallnotpass",\
             "name": "local",\
@@ -103,5 +103,13 @@ lavalink:\n\
 
 USER appuser
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+java -jar Lavalink.jar &\n\
+sleep 10\n\
+python3 main.py\n\
+' > /app/start.sh && \
+    chmod +x /app/start.sh
+
 # Start both Lavalink and the bot
-CMD java -jar Lavalink.jar & python3 main.py
+CMD ["/app/start.sh"]
