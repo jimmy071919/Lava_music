@@ -27,19 +27,45 @@ RUN useradd -m -u 1000 appuser
 RUN mkdir -p /app/configs /app/lava /app/locale && \
     chown -R appuser:appuser /app
 
-# Copy files individually
+# Copy application files
 COPY --chown=appuser:appuser main.py /app/
 COPY --chown=appuser:appuser extensions.json /app/
-COPY --chown=appuser:appuser configs/activity.json /app/configs/
-COPY --chown=appuser:appuser configs/application.yml /app/configs/
-COPY --chown=appuser:appuser configs/icons.json /app/configs/
-COPY --chown=appuser:appuser configs/lavalink.json /app/configs/
 COPY --chown=appuser:appuser lava/ /app/lava/
 COPY --chown=appuser:appuser locale/ /app/locale/
+
+# Create config files
+RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' > /app/configs/activity.json && \
+    echo '{"server": {"address": "0.0.0.0", "port": 2333}, "lavalink": {"server": {"password": "youshallnotpass"}}}' > /app/configs/lavalink.json && \
+    chown appuser:appuser /app/configs/activity.json /app/configs/lavalink.json
 
 # Download Lavalink
 RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar && \
     chown appuser:appuser Lavalink.jar
+
+# Create Lavalink config
+RUN echo 'server:\n\
+  port: 2333\n\
+  address: 0.0.0.0\n\
+authorization:\n\
+  password: "youshallnotpass"\n\
+lavalink:\n\
+  server:\n\
+    password: "youshallnotpass"\n\
+    sources:\n\
+      youtube: true\n\
+      bandcamp: true\n\
+      soundcloud: true\n\
+      twitch: true\n\
+      vimeo: true\n\
+      http: true\n\
+    bufferDurationMs: 400\n\
+    youtubePlaylistLoadLimit: 6\n\
+    playerUpdateInterval: 5\n\
+    youtubeSearchEnabled: true\n\
+    soundcloudSearchEnabled: true\n\
+    gc-warnings: true\n\
+' > /app/configs/application.yml && \
+    chown appuser:appuser /app/configs/application.yml
 
 USER appuser
 
