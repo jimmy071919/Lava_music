@@ -10,6 +10,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     python3-minimal \
     python3-pip \
+    git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
