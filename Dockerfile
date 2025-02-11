@@ -1,66 +1,30 @@
-FROM eclipse-temurin:17-jre-jammy as builder
-
-# Install Python and build dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-dev \
-    git \
-    curl \
-    gcc \
-    g++ \
-    libjpeg-dev \
-    zlib1g-dev \
-    libffi-dev \
-    && rm -rf /var/lib/apt/lists/*
+FROM eclipse-temurin:17-jre-jammy
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Install minimal dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3-minimal \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN python3 -m pip install -r requirements.txt --prefix=/install
-
-FROM eclipse-temurin:17-jre-jammy as runtime
-
-# Install Python runtime
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG UID=10001
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/nonexistent" \
-    --shell "/sbin/nologin" \
-    --no-create-home \
-    --uid "${UID}" \
-    appuser
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-# Copy Python dependencies
-COPY --from=builder /install /usr/local
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Download Lavalink
-RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o /app/Lavalink.jar
+RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar
 
 # Copy application files
-COPY configs/ /app/configs/
-COPY lava/ /app/lava/
-COPY locale/ /app/locale/
-COPY main.py /app/
-COPY extensions.json /app/
+COPY . .
 
-RUN chown -R appuser:appuser /app
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 
 USER appuser
 
