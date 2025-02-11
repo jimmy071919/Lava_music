@@ -5,14 +5,16 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install minimal dependencies
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    python3-minimal \
+    python3 \
     python3-pip \
+    python3-dev \
     git \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/bin/python3 /usr/bin/python
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
