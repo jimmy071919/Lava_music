@@ -1,11 +1,11 @@
-FROM python:3.11-slim-bullseye as builder
+FROM eclipse-temurin:17-jre-jammy as builder
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y \
+# Install Python and build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-dev \
     git \
     curl \
     gcc \
@@ -15,15 +15,21 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
 COPY requirements.txt .
-RUN python -m pip install -r requirements.txt --prefix=/install
+RUN python3 -m pip install -r requirements.txt --prefix=/install
 
-FROM python:3.11-slim-bullseye as runtime
+FROM eclipse-temurin:17-jre-jammy as runtime
 
-# Install OpenJDK-17
-RUN apt-get update && apt-get install -y \
-    openjdk-17-jre-headless \
-    curl \
+# Install Python runtime
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 ARG UID=10001
@@ -59,4 +65,4 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Start both Lavalink and the bot
-CMD java -jar Lavalink.jar & python main.py
+CMD java -jar Lavalink.jar & python3 main.py
