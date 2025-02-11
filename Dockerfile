@@ -23,20 +23,23 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Create non-root user
 RUN useradd -m -u 1000 appuser
 
-# Copy application files with explicit paths
-COPY --chown=appuser:appuser configs/ /app/configs/
-COPY --chown=appuser:appuser lava/ /app/lava/
-COPY --chown=appuser:appuser locale/ /app/locale/
+# Create necessary directories
+RUN mkdir -p /app/configs /app/lava /app/locale && \
+    chown -R appuser:appuser /app
+
+# Copy files individually
 COPY --chown=appuser:appuser main.py /app/
 COPY --chown=appuser:appuser extensions.json /app/
+COPY --chown=appuser:appuser configs/activity.json /app/configs/
+COPY --chown=appuser:appuser configs/application.yml /app/configs/
+COPY --chown=appuser:appuser configs/icons.json /app/configs/
+COPY --chown=appuser:appuser configs/lavalink.json /app/configs/
+COPY --chown=appuser:appuser lava/ /app/lava/
+COPY --chown=appuser:appuser locale/ /app/locale/
 
 # Download Lavalink
 RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar && \
     chown appuser:appuser Lavalink.jar
-
-# Verify file existence and permissions
-RUN ls -la /app/configs/activity.json && \
-    ls -la /app/configs/
 
 USER appuser
 
