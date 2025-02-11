@@ -47,11 +47,7 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
             "port": 8080,\
             "password": "youshallnotpass",\
             "name": "local",\
-            "region": "us",\
-            "resume_key": "default-node",\
-            "resume_timeout": 60,\
-            "ssl": false,\
-            "search_only": false\
+            "region": "us"\
         }\
     ]\
 }' > /app/configs/lavalink.json && \
@@ -110,9 +106,13 @@ lavalink:\n\
 logging:\n\
   file:\n\
     path: /app/logs/lavalink.log\n\
+    max-history: 30\n\
+    max-size: 1GB\n\
+  path: /app/logs/\n\
   level:\n\
     root: INFO\n\
     lavalink: DEBUG\n\
+    lavaplayer: DEBUG\n\
 ' > /app/configs/application.yml && \
     chown appuser:appuser /app/configs/application.yml
 
@@ -200,6 +200,9 @@ ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,stat,start,time\n\
 sleep 5\n\
 \n\
 echo "Starting Discord bot..."\n\
+# Ensure logs directory exists and is writable\n\
+mkdir -p /app/logs && chown appuser:appuser /app/logs\n\
+\n\
 # Start bot with output to both console and file\n\
 python3 -u main.py 2>&1 | tee /app/logs/bot.log & \n\
 BOT_PID=$!\n\
