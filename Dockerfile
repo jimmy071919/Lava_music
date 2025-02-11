@@ -35,7 +35,17 @@ COPY --chown=appuser:appuser locale/ /app/locale/
 
 # Create config files
 RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}' > /app/configs/activity.json && \
-    echo '{"server": {"address": "0.0.0.0", "port": 2333}, "lavalink": {"server": {"password": "youshallnotpass"}}}' > /app/configs/lavalink.json && \
+    echo '{\
+    "nodes": [\
+        {\
+            "host": "localhost",\
+            "port": 2333,\
+            "password": "youshallnotpass",\
+            "name": "local",\
+            "region": "us"\
+        }\
+    ]\
+}' > /app/configs/lavalink.json && \
     echo '{\
     "empty": "",\
     "progress": {\
