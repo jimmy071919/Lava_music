@@ -47,7 +47,9 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
             "port": 8080,\
             "password": "youshallnotpass",\
             "name": "local",\
-            "region": "us"\
+            "region": "us",\
+            "identifier": "main",\
+            "version": "v4"\
         }\
     ]\
 }' > /app/configs/lavalink.json && \
@@ -85,6 +87,7 @@ RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lava
 RUN echo 'server:\n\
   port: 8080\n\
   address: 0.0.0.0\n\
+  version: v4\n\
 authorization:\n\
   password: "youshallnotpass"\n\
 lavalink:\n\
@@ -103,6 +106,8 @@ lavalink:\n\
     youtubeSearchEnabled: true\n\
     soundcloudSearchEnabled: true\n\
     gc-warnings: true\n\
+    websocket:\n\
+      path: /v4/websocket\n\
 logging:\n\
   file:\n\
     path: /app/logs/lavalink.log\n\
