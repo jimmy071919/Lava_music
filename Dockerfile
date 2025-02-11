@@ -3,6 +3,7 @@ FROM eclipse-temurin:17-jre-jammy
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV SERVER_PORT=8080
 
 WORKDIR /app
 
@@ -43,7 +44,7 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
     "nodes": [\
         {\
             "host": "127.0.0.1",\
-            "port": 2333,\
+            "port": 8080,\
             "password": "youshallnotpass",\
             "name": "local",\
             "region": "us"\
@@ -82,7 +83,7 @@ RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lava
 
 # Create Lavalink config
 RUN echo 'server:\n\
-  port: 2333\n\
+  port: 8080\n\
   address: 0.0.0.0\n\
 authorization:\n\
   password: "youshallnotpass"\n\
@@ -178,8 +179,8 @@ echo "Lavalink is ready!"\n\
 \n\
 # Test if Lavalink is responding\n\
 echo "Testing Lavalink connection..."\n\
-if ! nc -z localhost 2333; then\n\
-    echo "ERROR: Cannot connect to Lavalink on port 2333"\n\
+if ! nc -z localhost 8080; then\n\
+    echo "ERROR: Cannot connect to Lavalink on port 8080"\n\
     cleanup\n\
     exit 1\n\
 fi\n\
@@ -187,6 +188,9 @@ fi\n\
 # Check Lavalink process status\n\
 echo "Lavalink process info:"\n\
 ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,vsz,rss,stat,start,time,command\n\
+\n\
+# Wait a bit for Lavalink to fully initialize\n\
+sleep 5\n\
 \n\
 echo "Starting Discord bot..."\n\
 python3 -u main.py > /app/logs/bot.log 2>&1 &\n\
