@@ -1,53 +1,21 @@
-FROM eclipse-temurin:17-jre-jammy as lavalink
+FROM eclipse-temurin:17-jre-jammy
 
-WORKDIR /lavalink
-
-# Install curl for healthcheck
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download Lavalink
-RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar
-
-# Create Lavalink config
-RUN echo 'server:\n\
-  port: 2333\n\
-  address: 0.0.0.0\n\
-authorization:\n\
-  password: "youshallnotpass"\n\
-lavalink:\n\
-  server:\n\
-    password: "youshallnotpass"\n\
-    sources:\n\
-      youtube: true\n\
-      bandcamp: true\n\
-      soundcloud: true\n\
-      twitch: true\n\
-      vimeo: true\n\
-      http: true\n\
-    bufferDurationMs: 400\n\
-    youtubePlaylistLoadLimit: 6\n\
-    playerUpdateInterval: 5\n\
-    youtubeSearchEnabled: true\n\
-    soundcloudSearchEnabled: true\n\
-    gc-warnings: true\n\
-' > application.yml
-
-# Start Lavalink
-CMD ["java", "-jar", "Lavalink.jar"]
-
-# Second stage for the Discord bot
-FROM python:3.10-slim
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
 # Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-dev \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    tini \
+    && rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/bin/python3 /usr/bin/python
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
@@ -71,7 +39,7 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
     echo '{\
     "nodes": [\
         {\
-            "host": "lavalink",\
+            "host": "127.0.0.1",\
             "port": 2333,\
             "password": "youshallnotpass",\
             "name": "local",\
@@ -105,7 +73,64 @@ RUN echo '{"type": 0, "name": "Musics", "url": "https://www.youtube.com/watch?v=
 }' > /app/configs/icons.json && \
     chown appuser:appuser /app/configs/activity.json /app/configs/lavalink.json /app/configs/icons.json
 
+# Download Lavalink
+RUN curl -L https://github.com/freyacodes/Lavalink/releases/download/3.7.11/Lavalink.jar -o Lavalink.jar && \
+    chown appuser:appuser Lavalink.jar
+
+# Create Lavalink config
+RUN echo 'server:\n\
+  port: 2333\n\
+  address: 0.0.0.0\n\
+authorization:\n\
+  password: "youshallnotpass"\n\
+lavalink:\n\
+  server:\n\
+    password: "youshallnotpass"\n\
+    sources:\n\
+      youtube: true\n\
+      bandcamp: true\n\
+      soundcloud: true\n\
+      twitch: true\n\
+      vimeo: true\n\
+      http: true\n\
+    bufferDurationMs: 400\n\
+    youtubePlaylistLoadLimit: 6\n\
+    playerUpdateInterval: 5\n\
+    youtubeSearchEnabled: true\n\
+    soundcloudSearchEnabled: true\n\
+    gc-warnings: true\n\
+' > /app/configs/application.yml && \
+    chown appuser:appuser /app/configs/application.yml
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting Lavalink..."\n\
+java -jar Lavalink.jar > lavalink.log 2>&1 &\n\
+LAVALINK_PID=$!\n\
+\n\
+echo "Waiting for Lavalink to start..."\n\
+tail -f lavalink.log & \n\
+TAIL_PID=$!\n\
+\n\
+while ! grep -q "Lavalink is ready to accept connections." lavalink.log; do\n\
+    if ! ps -p $LAVALINK_PID > /dev/null; then\n\
+        echo "Lavalink failed to start. Log output:"\n\
+        cat lavalink.log\n\
+        exit 1\n\
+    fi\n\
+    sleep 1\n\
+done\n\
+\n\
+kill $TAIL_PID\n\
+echo "Lavalink is ready!"\n\
+\n\
+echo "Starting Discord bot..."\n\
+exec python3 main.py\n\
+' > /app/start.sh && \
+    chmod +x /app/start.sh
+
 USER appuser
 
-# Start the Discord bot
-CMD ["python3", "main.py"]
+# Use tini as init
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/app/start.sh"]

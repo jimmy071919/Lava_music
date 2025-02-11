@@ -1,7 +1,6 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-dockerComposeFile = "docker-compose.yml"
 
 [deploy]
 startCommand = "python main.py"
