@@ -43,7 +43,12 @@ RUN apk update && apk add --no-cache \
 
 COPY --from=builder /install /usr/local
 
-COPY . .
+# Copy application files
+COPY configs/ /app/configs/
+COPY lava/ /app/lava/
+COPY locale/ /app/locale/
+COPY main.py /app/
+COPY extensions.json /app/
 
 RUN chown -R appuser:appuser /app
 

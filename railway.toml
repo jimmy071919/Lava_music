@@ -1,9 +1,10 @@
 [build]
-builder = "DOCKERFILE"
+builder = "DOCKER"
 dockerfilePath = "Dockerfile"
+dockerComposeFile = "docker-compose.yml"
 
 [deploy]
-startCommand = "python main.py"
+startCommand = "docker-compose up"
 healthcheckPath = "/"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
