@@ -16,6 +16,7 @@ RUN apt-get update && \
     curl \
     tini \
     procps \
+    netcat \
     && rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/bin/python3 /usr/bin/python
 
@@ -101,6 +102,12 @@ lavalink:\n\
     youtubeSearchEnabled: true\n\
     soundcloudSearchEnabled: true\n\
     gc-warnings: true\n\
+logging:\n\
+  file:\n\
+    path: /app/logs/lavalink.log\n\
+  level:\n\
+    root: INFO\n\
+    lavalink: DEBUG\n\
 ' > /app/configs/application.yml && \
     chown appuser:appuser /app/configs/application.yml
 
@@ -126,6 +133,9 @@ cleanup() {\n\
     if [ ! -z "$TAIL_PID" ]; then\n\
         kill $TAIL_PID 2>/dev/null\n\
     fi\n\
+    if [ ! -z "$BOT_PID" ]; then\n\
+        kill $BOT_PID 2>/dev/null\n\
+    fi\n\
     exit 0\n\
 }\n\
 \n\
@@ -134,7 +144,9 @@ trap cleanup SIGTERM SIGINT\n\
 \n\
 echo "Starting Lavalink..."\n\
 mkdir -p /app/logs\n\
-java -jar Lavalink.jar > /app/logs/lavalink.log 2>&1 &\n\
+\n\
+# Start Lavalink with debug options\n\
+java -Dlog4j2.debug=true -jar Lavalink.jar > /app/logs/lavalink.log 2>&1 &\n\
 LAVALINK_PID=$!\n\
 \n\
 echo "Waiting for Lavalink to start (PID: $LAVALINK_PID)..."\n\
@@ -164,19 +176,33 @@ done\n\
 kill $TAIL_PID\n\
 echo "Lavalink is ready!"\n\
 \n\
+# Test if Lavalink is responding\n\
+echo "Testing Lavalink connection..."\n\
+if ! nc -z localhost 2333; then\n\
+    echo "ERROR: Cannot connect to Lavalink on port 2333"\n\
+    cleanup\n\
+    exit 1\n\
+fi\n\
+\n\
+# Check Lavalink process status\n\
+echo "Lavalink process info:"\n\
+ps -p $LAVALINK_PID -o pid,ppid,user,%cpu,%mem,vsz,rss,stat,start,time,command\n\
+\n\
 echo "Starting Discord bot..."\n\
-python3 main.py &\n\
+python3 -u main.py > /app/logs/bot.log 2>&1 &\n\
 BOT_PID=$!\n\
 \n\
 # Monitor both processes\n\
 while true; do\n\
     if ! is_process_running $LAVALINK_PID; then\n\
-        echo "Lavalink process died!"\n\
+        echo "Lavalink process died! Log tail:"\n\
+        tail -n 50 /app/logs/lavalink.log\n\
         cleanup\n\
         exit 1\n\
     fi\n\
     if ! is_process_running $BOT_PID; then\n\
-        echo "Discord bot process died!"\n\
+        echo "Discord bot process died! Log tail:"\n\
+        tail -n 50 /app/logs/bot.log\n\
         cleanup\n\
         exit 1\n\
     fi\n\
